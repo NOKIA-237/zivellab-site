@@ -60,23 +60,26 @@
     const video = document.getElementById('starVideo');
 
     async function startMutedPlay() {
+      if (!video) return;
       video.muted = true;
+      video.defaultMuted = true;
       try {
         await video.play();
       } catch (err) {
-        // 个别环境（如低电量模式或内置浏览器策略）仍可能暂停自动播放
+        // 浏览器策略或省电模式拦截时，等待后续媒体事件或用户交互
       }
     }
 
     async function unlockAudio() {
+      if (!video) return;
       video.muted = false;
+      video.defaultMuted = false;
       try {
         await video.play();
-        ['pointerdown', 'touchstart', 'keydown'].forEach((evt) => {
+        ['pointerdown', 'touchstart', 'click', 'keydown'].forEach((evt) => {
           window.removeEventListener(evt, unlockAudio);
         });
       } catch (err) {
-        // 若当前手势仍无法解开有声播放，保持静音播放并保留监听，等下次交互再试
         video.muted = true;
         try {
           await video.play();
@@ -84,10 +87,16 @@
       }
     }
 
-    window.addEventListener('DOMContentLoaded', startMutedPlay);
-    window.addEventListener('pageshow', startMutedPlay);
+    ['DOMContentLoaded', 'load', 'pageshow', 'loadedmetadata', 'loadeddata', 'canplay'].forEach((evt) => {
+      window.addEventListener(evt, startMutedPlay, { passive: true });
+      if (video) {
+        video.addEventListener(evt, startMutedPlay, { passive: true });
+      }
+    });
 
-    ['pointerdown', 'touchstart', 'keydown'].forEach((evt) => {
+    startMutedPlay();
+
+    ['pointerdown', 'touchstart', 'click', 'keydown'].forEach((evt) => {
       window.addEventListener(evt, unlockAudio, { passive: true });
     });
   </script>
