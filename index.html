@@ -59,24 +59,36 @@
   <script>
     const video = document.getElementById('starVideo');
 
-    async function unlockAudio() {
-      if (!video.muted) return;
-      video.muted = false;
+    async function startMutedPlay() {
+      video.muted = true;
       try {
         await video.play();
       } catch (err) {
-        video.muted = true;
+        // 个别环境（如低电量模式或内置浏览器策略）仍可能暂停自动播放
       }
     }
 
-    // 尝试直接带声音播放（若浏览器允许则直接有声）
-    window.addEventListener('DOMContentLoaded', () => {
-      unlockAudio();
-    });
+    async function unlockAudio() {
+      video.muted = false;
+      try {
+        await video.play();
+        ['pointerdown', 'touchstart', 'keydown'].forEach((evt) => {
+          window.removeEventListener(evt, unlockAudio);
+        });
+      } catch (err) {
+        // 若当前手势仍无法解开有声播放，保持静音播放并保留监听，等下次交互再试
+        video.muted = true;
+        try {
+          await video.play();
+        } catch (e) {}
+      }
+    }
 
-    // 若浏览器策略拦截了初始声音，用户一旦点击、触摸或按键即刻开启声音
-    ['pointerdown', 'keydown'].forEach((evt) => {
-      window.addEventListener(evt, unlockAudio, { once: true });
+    window.addEventListener('DOMContentLoaded', startMutedPlay);
+    window.addEventListener('pageshow', startMutedPlay);
+
+    ['pointerdown', 'touchstart', 'keydown'].forEach((evt) => {
+      window.addEventListener(evt, unlockAudio, { passive: true });
     });
   </script>
 </body>
